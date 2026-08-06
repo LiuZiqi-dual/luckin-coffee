@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "homeRegion": {
+    "city": "示例城市",
+    "district": "示例区县",
+    "longitude": 0,
+    "latitude": 0,
+    "source": "api"
+  },
+  "favorites": [
+    {
+      "name": "示例门店",
+      "deptId": 0,
+      "address": "接口返回的门店地址文本",
+      "longitude": 0,
+      "latitude": 0,
+      "source": "api",
+      "aliases": ["示例", "别名"]
+    }
+  ]
+}

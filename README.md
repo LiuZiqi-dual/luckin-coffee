@@ -143,6 +143,18 @@ Just ask. The skill runs these phases:
 | 6 | Create the order, then **auto-poll payment** (15/30/45/60s, then every 20s to a 150s cap) |
 | 7 | Deliver the **pickup QR** (content verified char-for-char) + pickup number |
 
+## Zero-config mode (curl fallback)
+
+Don't want to register the MCP server — or can't restart the client to load it? If you have a Bearer key, the skill can run the **entire** flow over plain HTTP, with no client config at all. `scripts/mcp_curl.sh` calls the same endpoint via standard MCP-over-HTTP (JSON-RPC 2.0):
+
+```bash
+export LUCKIN_MCP_TOKEN='<YOUR_KEY>'        # ephemeral for this shell; not persisted
+bash scripts/mcp_curl.sh list
+bash scripts/mcp_curl.sh call queryShopList '{"longitude":121.47,"latitude":31.23,"deptName":"..."}'
+```
+
+Every tool the skill uses is reachable this way (`queryShopList`, `searchProductForMcp`, `previewOrder`, `createOrder`, `queryOrderDetailInfo`, …). The token is read from `$LUCKIN_MCP_TOKEN` → `$ORDER_COFFEE_TOKEN` → `~/.order-coffee/token` (first hit wins) and is **never printed or written** by the script — it only travels inside the curl call. It is persisted to `~/.order-coffee/token` (`chmod 600`) **only if you explicitly opt in**, never to `config.json` or agent memory. When the my-coffee tools *are* registered as native MCP tools, the skill prefers those (cleaner, no token handling).
+
 ## How the pickup QR works
 
 The MCP returns `takeMealCodeInfo.takeOrderId` (the exact string the Luckin app encodes in its pickup QR) and a human-readable `code`. `scripts/make_pickup_qr.js` encodes the `takeOrderId` into a PNG, then **decodes it back and requires a char-for-char match** before the image is ever shown. If verification fails, the bad PNG is deleted and the skill falls back to sending the pickup number as text.
@@ -150,6 +162,7 @@ The MCP returns `takeMealCodeInfo.takeOrderId` (the exact string the Luckin app 
 ## Security & privacy
 
 - The API key lives **only** in the MCP client config; it is never written to `config.json`, never stored in agent memory, and masked if ever echoed.
+- **Zero-config mode** reads the key from an env var by default; it is persisted (to `~/.order-coffee/token`, `chmod 600`) only with your explicit consent, never to `config.json` or agent memory.
 - `config.json` stores only store preferences + coordinates.
 - QR codes are generated and verified locally; nothing is sent to third parties.
 
@@ -312,6 +325,18 @@ cd ~/.claude/skills/order-coffee/scripts && npm install
 | 6 | 下单，然后**自动轮询支付**（15/30/45/60s，之后每 20s，上限 150s） |
 | 7 | 交付**取餐二维码**（内容逐字符校验）+ 取餐号 |
 
+## 零配置模式（curl 兜底）
+
+不想注册 MCP 服务器 —— 或没法重启客户端来加载它？只要有 Bearer key，skill 就能纯 HTTP 跑完**整个**流程，完全不碰客户端配置。`scripts/mcp_curl.sh` 用标准 MCP-over-HTTP（JSON-RPC 2.0）调同一个端点：
+
+```bash
+export LUCKIN_MCP_TOKEN='<你的KEY>'         # 仅当前 shell 临时用，不持久化
+bash scripts/mcp_curl.sh list
+bash scripts/mcp_curl.sh call queryShopList '{"longitude":121.47,"latitude":31.23,"deptName":"..."}'
+```
+
+skill 用到的每个工具都能这样调（`queryShopList`、`searchProductForMcp`、`previewOrder`、`createOrder`、`queryOrderDetailInfo`…）。token 按 `$LUCKIN_MCP_TOKEN` → `$ORDER_COFFEE_TOKEN` → `~/.order-coffee/token` 顺序读取（先命中先用），脚本**从不打印或写入**它 —— 它只在 curl 调用里出现。只有你**明确同意**才会持久化到 `~/.order-coffee/token`（`chmod 600`），绝不写进 `config.json` 或 agent 记忆。当 my-coffee 工具已作为原生 MCP 工具注册时，skill 优先用它们（更干净，无需处理 token）。
+
 ## 取餐二维码的原理
 
 MCP 返回 `takeMealCodeInfo.takeOrderId`（瑞幸 App 取餐码里编码的确切字符串）和一个人类可读的 `code`。`scripts/make_pickup_qr.js` 把 `takeOrderId` 编码为 PNG，然后**再解码回来、要求逐字符一致**才会展示图片。若校验失败，会删除坏 PNG 并降级为以文本形式发送取餐号。
@@ -319,6 +344,7 @@ MCP 返回 `takeMealCodeInfo.takeOrderId`（瑞幸 App 取餐码里编码的确�
 ## 安全与隐私
 
 - API key **只**存在 MCP 客户端配置里；绝不写进 `config.json`、绝不存入 agent 记忆，如需回显则打码。
+- **零配置模式**默认从环境变量读 key；只有你**明确同意**才会持久化（存到 `~/.order-coffee/token`，`chmod 600`），绝不写进 `config.json` 或 agent 记忆。
 - `config.json` 只存门店偏好 + 坐标。
 - 二维码在本地生成与校验，不向任何第三方发送。
 

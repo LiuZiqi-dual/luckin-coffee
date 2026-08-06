@@ -17,7 +17,9 @@ Order coffee end-to-end. Follow the phases in order. Scripts live in this skill'
   `Authorization` header; for stdio-type servers: the `env` field). **Never** put the key in
   `config.json`, this skill's files, or memory. You **may** pass the full key inside the actual
   command that writes the MCP config (e.g. `claude mcp add … --header`); but **never** echo it in
-  full in chat prose — mask it there (`Bearer ****1234`).
+  full in chat prose — mask it there (`Bearer ****1234`). The one exception is the opt-in curl
+  fallback (Phase 0.5): there the token may live in `$LUCKIN_MCP_TOKEN` / `$ORDER_COFFEE_TOKEN`,
+  or — only with explicit user consent — in `~/.order-coffee/token` (`chmod 600`).
 - Before `createOrder`, get a **fresh** yes for the current preview (four elements below).
   Never reuse an earlier confirmation.
 - Never send a pickup-QR image that failed verification.
@@ -108,6 +110,31 @@ config, and the full value appears only in the actual add/write command.
 **Acceptance after guidance:** when the user says they've configured it → **re-run Phase 0 check 2**
 (the read-only call). Success → continue to Phase 1. Still failing → show the error **verbatim**,
 no guessing.
+
+## Phase 0.5 — curl fallback when the MCP isn't registered (optional)
+If Phase 0 check 1 found **no** my-coffee tools **but a token is available**, you don't have to make
+the user register the MCP server first — you can drive the whole flow over plain HTTP with
+`scripts/mcp_curl.sh` (standard MCP-over-HTTP / JSON-RPC; the endpoint is the server's public contract).
+
+- List tools: `bash scripts/mcp_curl.sh list`
+- Call a tool: `bash scripts/mcp_curl.sh call queryShopList '{"longitude":<lng>,"latitude":<lat>,"deptName":"<name>"}'`
+
+Every tool this skill uses (`queryShopList`, `searchProductForMcp`, `queryProductDetailInfo`,
+`switchProduct`, `previewOrder`, `createOrder`, `queryOrderDetailInfo`, `cancelOrder`) is reachable
+this way. Parse the JSON-RPC `result` — tool output is in `result.content[0].text` /
+`result.structuredContent`; the helper already unwraps SSE `data:` lines. An auth-error body
+(`访问令牌无效或已过期` / `oauth token is invalid`) means the token is bad → handle per Phase 0 (key regen).
+
+**Token policy (stricter than baking it into a config file):**
+- The helper reads the token from `$LUCKIN_MCP_TOKEN` → `$ORDER_COFFEE_TOKEN` → `~/.order-coffee/token`,
+  and never prints or writes it. Prefer an **ephemeral env var for the current command** (not persisted).
+- Only if the user **explicitly agrees** to reuse it across sessions, write it to `~/.order-coffee/token`
+  and `chmod 600`. **Ask first; never save silently.** To revoke: delete that file and say reuse is off.
+- The full token appears only inside the curl/helper call. **Mask it in all chat prose** (`Bearer ****1234`).
+
+**When the my-coffee tools ARE registered as client tools, prefer them** over curl (cleaner, no token
+handling). Curl is the zero-config path for harnesses where you can't — or don't want to — register the
+server, or when a restart to load the MCP isn't convenient.
 
 ## Phase 1 — Load config
 Run `node scripts/resolve_config.js init` then `node scripts/resolve_config.js load`.

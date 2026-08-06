@@ -250,12 +250,14 @@ into `createOrder` (Phase 6) — that field is what applies the discount; never 
    扫一扫 → 相册 → 识别. Never truncate the URL. **Label it clearly as the 支付码** so it isn't confused
    with the later 取餐码 (two different QR codes, shown at different times). Store-reason error → pass
    through and stop.
-   - **Phone chat channels (Telegram/Lark/Discord): also offer the deep link.** `payOrderUrl` is a WeChat
-     **Native-pay** link (`weixin://wxpay/bizpayurl?pr=…`). Surface it as a tappable `[打开微信支付](<payOrderUrl>)`
-     — **best-effort**: it opens WeChat on some Android setups but often fails on iOS, because Native pay is
-     built to be **scanned** from another device, not tapped on the same one. Frame it as "试试直接点，不行就
-     保存二维码用微信扫一扫→相册识别". There is no H5/mweb URL to give a guaranteed one-tap (that would need
-     Luckin to expose it).
+   - **Phone chat channels (Telegram/Lark/Discord): lead with the image, don't dangle a dead link.** These
+     clients **don't linkify custom schemes** — Telegram only makes `http`/`https`/`tg://` tappable and its
+     Bot API won't render a `weixin://` inline link, so `[打开微信支付](weixin://…)` shows up as plain, dead
+     text. So present the ¥ pay-QR **image** as the primary path ("保存图片 → 微信扫一扫 → 相册 识别"), and
+     include the raw `payOrderUrl` (`weixin://wxpay/bizpayurl?pr=…`) only as a **copyable fallback**, labeled
+     "复制到微信打开（部分机型可用）" — not as if it were tappable. Only on a client that actually honors custom
+     schemes should you present it as a tappable link. This is a channel + WeChat limitation: Native pay is
+     scan-oriented and there is no H5/mweb URL for a guaranteed one-tap (that would need Luckin to expose it).
    - **¥ icon for the 支付码 (recommended, verify-gated):** since `payOrderUrl` is the exact string the pay
      QR encodes, regenerate the code yourself with
      `node scripts/make_pickup_qr.js "<payOrderUrl>" scripts/pay-<orderId>.png pay` — the char-for-char

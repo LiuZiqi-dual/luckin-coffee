@@ -37,6 +37,11 @@ Order coffee end-to-end. Follow the phases in order. Scripts live in this skill'
   pickup code, pickup QR, or an estimated pickup time — the pre-payment `takeMealCodeInfo.code` is a placeholder.
 - **Stay invisible.** Don't show the user tool names, raw JSON/SSE, or the `curl` commands you run —
   surface only the business result and the next step.
+- **Self-pickup only — reject delivery intent.** If the user asks for delivery in any form
+  (外送/配送/外卖/送到/送达/送过来/寄到/跑腿 …), do **not** enter the store/product/order flow. Tell them
+  only in-store self-pickup is supported and ask whether they'll pick it up themselves — e.g. "目前只支持
+  到店自取哦，改成到店自提可以吗？" — and continue **only** after they agree to self-pickup. The MCP has no
+  delivery mode; never imply one or smuggle an address via `remark`.
 
 ## Phase 0 — MCP preflight (run FIRST, before anything else)
 Skills spread faster than their dependencies — assume the MCP may be missing or mis-keyed.

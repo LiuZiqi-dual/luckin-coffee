@@ -22,8 +22,10 @@ Order coffee end-to-end. Follow the phases in order. Scripts live in this skill'
   or — only with explicit user consent — in `~/.order-coffee/token` (`chmod 600`).
 - **Coupon passthrough (money-critical):** if `previewOrder` returns a non-empty `couponCodeList`,
   `createOrder` **must** forward it **verbatim** — dropping it silently overcharges the user.
-- **Payment link:** hand the user `payOrderQrCodeUrl` (the pay-QR image); **never** use `payOrderUrl`,
-  and never truncate the URL.
+- **Payment link:** default to the `payOrderQrCodeUrl` pay-QR (image). `payOrderUrl` is the WeChat
+  **Native-pay** deep link (`weixin://wxpay/bizpayurl?pr=…`) — you MAY surface it as a tappable
+  "打开微信支付" link on phone chat channels (best-effort; see Phase 6) or re-encode it into a verified
+  ¥-iconed QR. Never truncate any pay URL.
 - Get an explicit yes before `createOrder`, using the confirmation mode Phase 5 selects. Never reuse a
   **stale** confirmation from an unrelated earlier order.
 - Never send a pickup-QR image that failed verification.
@@ -157,8 +159,14 @@ server, or when a restart to load the MCP isn't convenient.
 
 ## Phase 1 — Load config
 Run `node scripts/resolve_config.js init` then `node scripts/resolve_config.js load`.
-- If `init` reported `created=true`, tell the user the config path and that this is first-time
-  setup; offer to register one or more favorite stores now (Phase 2 store search for each).
+- **Surface the favorites feature (users don't know it exists).** If `init` reported `created=true`,
+  **or** `load` shows an empty `favorites`, tell the user once that you can remember favorite stores so
+  next time they just say "老样子" — and offer to register one or more now (Phase 2 store search for each).
+- **Ephemeral-HOME harnesses (sandboxed runs).** If each run gets a fresh `$HOME`, the default
+  `~/.order-coffee/config.json` won't persist — favorites silently reset every run and the feature never
+  works. Tell-tale: `load` keeps returning empty `favorites` even though the user saved some. Fix by
+  setting a **stable absolute** `$ORDER_COFFEE_CONFIG` (resolve priority 1) — in the harness's skill env,
+  or `export` it before the node calls — so favorites survive. If you can't make it persist, say so.
 - If the runtime has a memory feature, store a one-line signpost only: config path + favorite
   store names. Never write deptId/coords (or the key) to memory — JSON is the source of truth.
 
@@ -238,13 +246,22 @@ into `createOrder` (Phase 6) — that field is what applies the discount; never 
    non-empty (omitting it overcharges the user). Record the initial `orderStatus`. **Payment:** hand the
    user `payOrderQrCodeUrl` — render it as a Markdown image `![支付二维码](<payOrderQrCodeUrl>)` **plus** a
    full clickable `[打开支付二维码](<payOrderQrCodeUrl>)` fallback; on a channel with native image support
-   (e.g. 飞书/微信 media), send the image natively. **Never** show `payOrderUrl` to the user; never truncate
-   the URL. **Label it clearly as the 支付码** so it isn't confused with the later 取餐码 (two different QR
-   codes, shown at different times). Store-reason error → pass through and stop.
-   - *Optional (opt-in):* to give the 支付码 a matching ¥ icon, regenerate it yourself with
-     `node scripts/make_pickup_qr.js "<payOrderUrl>" scripts/pay-<orderId>.png pay` — but only after you've
-     confirmed on a real order that the regenerated code actually opens payment. Until validated, show
-     Luckin's `payOrderQrCodeUrl` image unchanged (never risk a broken payment code).
+   (飞书/微信/Telegram media), send it as a real **image** so the user can save it and use WeChat
+   扫一扫 → 相册 → 识别. Never truncate the URL. **Label it clearly as the 支付码** so it isn't confused
+   with the later 取餐码 (two different QR codes, shown at different times). Store-reason error → pass
+   through and stop.
+   - **Phone chat channels (Telegram/Lark/Discord): also offer the deep link.** `payOrderUrl` is a WeChat
+     **Native-pay** link (`weixin://wxpay/bizpayurl?pr=…`). Surface it as a tappable `[打开微信支付](<payOrderUrl>)`
+     — **best-effort**: it opens WeChat on some Android setups but often fails on iOS, because Native pay is
+     built to be **scanned** from another device, not tapped on the same one. Frame it as "试试直接点，不行就
+     保存二维码用微信扫一扫→相册识别". There is no H5/mweb URL to give a guaranteed one-tap (that would need
+     Luckin to expose it).
+   - **¥ icon for the 支付码 (recommended, verify-gated):** since `payOrderUrl` is the exact string the pay
+     QR encodes, regenerate the code yourself with
+     `node scripts/make_pickup_qr.js "<payOrderUrl>" scripts/pay-<orderId>.png pay` — the char-for-char
+     verify guarantees it encodes the same string, so scanning it is identical to Luckin's QR, now with a ¥
+     icon. On `QR_FAIL>>>`, fall back to Luckin's `payOrderQrCodeUrl` image. Confirm once on a real order
+     that it pays before relying on it.
 2. **Capture the initial placeholder:** run one `queryOrderDetailInfo` now (still 待付款) and remember its
    `takeMealCodeInfo.code` as `INITIAL_CODE`.
 3. **Auto-poll** (no need for the user to tell you they paid). Between checks, wait with a background sleep
@@ -267,6 +284,9 @@ into `createOrder` (Phase 6) — that field is what applies the discount; never 
 2. **`QR_OK>>>`** → send the image labeled **取餐码** + pickup number `code` + store/product summary (Read the PNG to render it).
 3. **`QR_FAIL>>>`** → the script already deleted the bad PNG. Degrade: send the pickup number `code` +
    store/product summary as text, and say the QR failed. Never send an unverified image.
+4. **Offer to save the store as a favorite** if it isn't one yet: "要把这家设成常用吗？以后说'老样子'我直接
+   帮你点。" On yes, add it to `favorites` (Phase 2 backfill rules). This is the main way users discover the
+   favorites feature — don't skip it.
 
 ## Recovery
 If the user says "查一下我刚才的订单", query the latest order and resume: 待付款 → run one check

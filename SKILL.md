@@ -40,9 +40,16 @@ flow and handle it as "key invalid" (Installation → key regen) — never treat
 failure. After the user updates the key, resume via "查一下我刚才的订单" (Recovery) or restart.
 
 ## Installation & Configuration
-**Prerequisites:** a my-coffee (Luckin 瑞幸) MCP API key — a Bearer token issued by Luckin's open
-platform / your MCP provider. Obtain or regenerate it there. (Confirm the exact portal URL with your
-provider; this skill does not invent one.)
+**Prerequisites:** a my-coffee (Luckin 瑞幸) MCP API key — a Bearer token from Luckin's open platform.
+
+**How to get the key (tell the user this):**
+1. Open the Luckin open platform: **https://open.lkcoffee.com**
+2. Find and click the **登录 (Log in)** button on the page, and sign in.
+3. After login the platform **auto-generates the key** (the Bearer token) — copy it.
+4. Use it **only** in the MCP client config (below). To rotate, log back in there and regenerate.
+
+Do not invent any other portal or steps; this is the whole flow. If the page or flow has changed,
+have the user follow the on-screen login and report the key it shows — never guess a key.
 
 **my-coffee is an HTTP MCP server:**
 - url: `https://gwmcp.lkcoffee.com/order/user/mcp`

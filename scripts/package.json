@@ -1,0 +1,13 @@
+{
+  "//": "deps locked 2026-08-06 — exact versions, do not add ^ or ~",
+  "name": "order-coffee-scripts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "dependencies": {
+    "qrcode": "1.5.4",
+    "jsqr": "1.4.0",
+    "pngjs": "7.0.0",
+    "jpeg-js": "0.4.4"
+  }
+}

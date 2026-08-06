@@ -39,14 +39,14 @@ A Claude [Agent Skill](https://docs.anthropic.com/en/docs/claude-code/skills) th
    ```
    Expect **10 passing, 0 failing** (QR verify + config resolution). If any fail, stop and report it — do not paper over it.
 
-5. **Configure the my-coffee MCP server.** This is the one step needing a human secret.
-   - **Ask the human for their my-coffee (Luckin 瑞幸) Bearer API key.** If they don't have one, walk them through getting it: open the Luckin open platform **https://open.lkcoffee.com** → click the **登录 (Log in)** button and sign in → after login the platform **auto-generates the key**; copy it. Never invent a key yourself; pause here until they provide it.
-   - Register the HTTP MCP server (URL is fixed; the key goes **only** here — never in the skill's files, never in agent memory, and mask it if you ever echo it, e.g. `Bearer ****1234`):
+5. **Configure the my-coffee MCP server — do it for the user; don't make them hand-edit config.** This is the one step needing a human secret.
+   - **Ask the human for their my-coffee (Luckin 瑞幸) Bearer API key.** If they don't have one, walk them through getting it: open **[open.lkcoffee.com/mcp](https://open.lkcoffee.com/mcp)** → click the **登录 (Log in)** button and sign in → after login the platform **auto-generates the key**; copy it. Never invent a key yourself; pause here until they provide it.
+   - **Register the server yourself** — run the command below (the URL is fixed; the full key goes **only** into this command — never into the skill's files or agent memory, and mask it in chat prose, e.g. `Bearer ****1234`):
      ```bash
      claude mcp add --transport http my-coffee https://gwmcp.lkcoffee.com/order/user/mcp \
        --header "Authorization: Bearer <THEIR_KEY>"
      ```
-     Or, for a generic MCP client, output this block for them to paste into `~/.claude.json` / `.mcp.json` (Cursor/Copilot: `mcp.json`) — do **not** write it yourself unless they explicitly ask and the target path is known, in which case back up the file first:
+     Then tell them the my-coffee tools appear **after the client reloads MCP servers** (usually a restart) — they don't need to touch any file. For a non–Claude Code harness, back up the config file and write the block below into it; only if you can't, output it for them to paste (`~/.claude.json` / `.mcp.json`, Cursor/Copilot `mcp.json`):
      ```json
      {
        "mcpServers": {
@@ -72,7 +72,7 @@ A Claude [Agent Skill](https://docs.anthropic.com/en/docs/claude-code/skills) th
 ## Requirements
 
 - A Claude harness that supports skills + MCP (Claude Code, and other MCP-capable clients).
-- The **my-coffee** MCP server (HTTP transport) and an API key — a Bearer token from the Luckin open platform ([open.lkcoffee.com](https://open.lkcoffee.com): log in and the key is auto-generated).
+- The **my-coffee** MCP server (HTTP transport) and an API key — a Bearer token from the Luckin open platform ([open.lkcoffee.com/mcp](https://open.lkcoffee.com/mcp): log in and the key is auto-generated).
 - Node.js 18+ (the QR + config scripts use the built-in test runner and a few pinned deps).
 
 ## Install (manual)
@@ -83,7 +83,7 @@ The steps below are the human-readable version of the [agent runbook](#-automate
 
 `my-coffee` is an HTTP MCP server. **Your key goes only in the MCP client config — never in this skill's files.**
 
-> **Get your key:** open **[open.lkcoffee.com](https://open.lkcoffee.com)**, click the **登录 (Log in)** button and sign in — the platform auto-generates your Bearer key after login.
+> **Get your key:** open **[open.lkcoffee.com/mcp](https://open.lkcoffee.com/mcp)**, click the **登录 (Log in)** button and sign in — the platform auto-generates your Bearer key after login. (The skill can run the `claude mcp add` below **for** you — you don't have to hand-edit any config.)
 
 - url: `https://gwmcp.lkcoffee.com/order/user/mcp`
 - auth: `Authorization: Bearer <YOUR_KEY>`
@@ -210,14 +210,14 @@ cd scripts && node --test    # 10 tests (QR verify + config resolution)
    ```
    预期 **10 通过、0 失败**（二维码校验 + 配置解析）。若有失败，停下并如实上报，不要掩盖。
 
-5. **配置 my-coffee MCP 服务器。** 这是唯一需要人类密钥的步骤。
-   - **向用户索取其 my-coffee（瑞幸）Bearer API key。** 用户若没有，带其领取：打开瑞幸开放平台 **https://open.lkcoffee.com** → 点击页面上的 **登录** 按钮并登录 → 登录后平台会**自动生成 key**，复制即可。绝不自己臆造 key；拿到之前在此暂停。
-   - 注册这个 HTTP MCP 服务器（URL 固定；key **只**放这里 —— 不写进 skill 文件、不写进 agent 记忆；若需回显请打码，如 `Bearer ****1234`）：
+5. **配置 my-coffee MCP 服务器 —— 由你替用户完成，别让用户手动改配置。** 这是唯一需要人类密钥的步骤。
+   - **向用户索取其 my-coffee（瑞幸）Bearer API key。** 用户若没有，带其领取：打开 **[open.lkcoffee.com/mcp](https://open.lkcoffee.com/mcp)** → 点击页面上的 **登录** 按钮并登录 → 登录后平台会**自动生成 key**，复制即可。绝不自己臆造 key；拿到之前在此暂停。
+   - **由你亲自注册该服务器** —— 运行下面这条命令（URL 固定；完整 key **只**出现在这条命令里 —— 不写进 skill 文件、不写进 agent 记忆；在对话正文里要打码，如 `Bearer ****1234`）：
      ```bash
      claude mcp add --transport http my-coffee https://gwmcp.lkcoffee.com/order/user/mcp \
        --header "Authorization: Bearer <用户的KEY>"
      ```
-     或者，对通用 MCP 客户端，输出以下片段让用户自行粘贴进 `~/.claude.json` / `.mcp.json`（Cursor/Copilot 为 `mcp.json`）—— 除非用户明确要求且目标路径已知，否则不要替他写入；若确需写入，先备份原文件：
+     然后告诉用户：my-coffee 工具会在**客户端重新加载 MCP 服务器后**（通常是重启）出现，用户无需碰任何文件。若是非 Claude Code 的 harness，先备份配置文件再把下面这段写进去；实在写不了，才输出让用户自行粘贴（`~/.claude.json` / `.mcp.json`，Cursor/Copilot 为 `mcp.json`）：
      ```json
      {
        "mcpServers": {
@@ -241,7 +241,7 @@ cd scripts && node --test    # 10 tests (QR verify + config resolution)
 ## 环境要求
 
 - 支持 skills + MCP 的 Claude harness（Claude Code，以及其它支持 MCP 的客户端）。
-- **my-coffee** MCP 服务器（HTTP 传输）及一个 API key —— 瑞幸开放平台（[open.lkcoffee.com](https://open.lkcoffee.com)，登录后自动生成）签发的 Bearer token。
+- **my-coffee** MCP 服务器（HTTP 传输）及一个 API key —— 瑞幸开放平台（[open.lkcoffee.com/mcp](https://open.lkcoffee.com/mcp)，登录后自动生成）签发的 Bearer token。
 - Node.js 18+（二维码与配置脚本用到内置测试运行器和几个锁定版本的依赖）。
 
 ## 手动安装
@@ -252,7 +252,7 @@ cd scripts && node --test    # 10 tests (QR verify + config resolution)
 
 `my-coffee` 是 HTTP 型 MCP 服务器。**你的 key 只放在 MCP 客户端配置里 —— 绝不写进本 skill 的任何文件。**
 
-> **获取 key：** 打开 **[open.lkcoffee.com](https://open.lkcoffee.com)**，点击页面上的 **登录** 按钮并登录 —— 登录后平台会自动生成你的 Bearer key。
+> **获取 key：** 打开 **[open.lkcoffee.com/mcp](https://open.lkcoffee.com/mcp)**，点击页面上的 **登录** 按钮并登录 —— 登录后平台会自动生成你的 Bearer key。（下面的 `claude mcp add` 可以让 skill **替你**执行，你无需手动改任何配置。）
 
 - url：`https://gwmcp.lkcoffee.com/order/user/mcp`
 - 认证：`Authorization: Bearer <你的KEY>`

@@ -15,7 +15,9 @@ Order coffee end-to-end. Follow the phases in order. Scripts live in this skill'
   tokens, phone numbers, or payment info anywhere.
 - **The my-coffee API key lives ONLY in the MCP client config** (for my-coffee: the HTTP
   `Authorization` header; for stdio-type servers: the `env` field). **Never** put the key in
-  `config.json`, **never** in memory, and **never** echo it in full in chat — mask it (`Bearer ****1234`).
+  `config.json`, this skill's files, or memory. You **may** pass the full key inside the actual
+  command that writes the MCP config (e.g. `claude mcp add … --header`); but **never** echo it in
+  full in chat prose — mask it there (`Bearer ****1234`).
 - Before `createOrder`, get a **fresh** yes for the current preview (four elements below).
   Never reuse an earlier confirmation.
 - Never send a pickup-QR image that failed verification.
@@ -43,10 +45,10 @@ failure. After the user updates the key, resume via "查一下我刚才的订单
 **Prerequisites:** a my-coffee (Luckin 瑞幸) MCP API key — a Bearer token from Luckin's open platform.
 
 **How to get the key (tell the user this):**
-1. Open the Luckin open platform: **https://open.lkcoffee.com**
+1. Open the Luckin MCP open platform: **https://open.lkcoffee.com/mcp**
 2. Find and click the **登录 (Log in)** button on the page, and sign in.
 3. After login the platform **auto-generates the key** (the Bearer token) — copy it.
-4. Use it **only** in the MCP client config (below). To rotate, log back in there and regenerate.
+4. Hand it to this skill; it will configure the MCP for you (below). To rotate, log back in and regenerate.
 
 Do not invent any other portal or steps; this is the whole flow. If the page or flow has changed,
 have the user follow the on-screen login and report the key it shows — never guess a key.
@@ -89,9 +91,19 @@ Place it per your tool's MCP-config docs. (For a stdio-type server the secret wo
 my-coffee uses an HTTP `Authorization` header.) If you can't identify the harness, give the generic
 JSON block and tell the user to place it per their tool's docs.
 
-**Config-writing boundary:** by default just **output the snippet** for the user to paste. Only if the
-user explicitly says "帮我写入" **and** the target config path is known → write it, **backing up the
-original first**. Never write the key into `config.json` or memory.
+**Configure it FOR the user (default) — don't make them hand-edit config.** Once you have the key,
+offer to set it up and, on a yes, do it yourself:
+- **Claude Code:** run the CLI —
+  `claude mcp add --transport http my-coffee https://gwmcp.lkcoffee.com/order/user/mcp --header "Authorization: Bearer <KEY>"`.
+  Then tell the user the my-coffee tools load **after the client reloads MCP servers** (usually a restart);
+  they don't need to touch any file.
+- **File-based harness with a known config path:** **back up the file first**, then write the `mcpServers`
+  block into it.
+- **Only if you can't run/write** (unknown harness, no access, or user declines): output the JSON snippet
+  for them to paste.
+
+Never write the key into `config.json`, this skill's files, or memory — it goes only into the MCP client
+config, and the full value appears only in the actual add/write command.
 
 **Acceptance after guidance:** when the user says they've configured it → **re-run Phase 0 check 2**
 (the read-only call). Success → continue to Phase 1. Still failing → show the error **verbatim**,

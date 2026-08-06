@@ -17,6 +17,22 @@ test('makeAndVerify passes for a real takeOrderId', async () => {
   assert.strictEqual(decodeQR(out), 'amGpKIVlAAk=');
 });
 
+test('makeAndVerify with a pickup icon still round-trips (scannable)', async () => {
+  const dir = tmp();
+  const out = path.join(dir, 'pickup.png');
+  const res = await makeAndVerify('amGpKIVlAAk=', out, 'pickup');
+  assert.strictEqual(res.ok, true, res.reason);
+  assert.strictEqual(decodeQR(out), 'amGpKIVlAAk=');
+});
+
+test('makeAndVerify with a pay icon still round-trips (scannable)', async () => {
+  const dir = tmp();
+  const out = path.join(dir, 'pay.png');
+  const res = await makeAndVerify('https://pay.example/abc?t=xyz', out, 'pay');
+  assert.strictEqual(res.ok, true, res.reason);
+  assert.strictEqual(decodeQR(out), 'https://pay.example/abc?t=xyz');
+});
+
 test('verifyImage fails and deletes PNG when decoded != expected', async () => {
   const dir = tmp();
   const out = path.join(dir, 'bad.png');

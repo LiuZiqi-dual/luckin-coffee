@@ -104,6 +104,8 @@ Every tool the skill uses is reachable this way (`queryShopList`, `searchProduct
 
 The MCP returns `takeMealCodeInfo.takeOrderId` (the exact string the Luckin app encodes in its pickup QR) and a human-readable `code`. `scripts/make_pickup_qr.js` encodes the `takeOrderId` into a PNG, then **decodes it back and requires a char-for-char match** before the image is ever shown. If verification fails, the bad PNG is deleted and the skill falls back to sending the pickup number as text.
 
+The pickup QR carries a **coffee-mug center icon** (the payment QR uses a **¥** mark) so the two codes are never mixed up. The icon uses error-correction level H and passes the same char-for-char verify, so it stays scannable.
+
 ## Security & privacy
 
 - The API key lives **only** in the MCP client config; it is never written to `config.json`, never stored in agent memory, and masked if ever echoed.
@@ -230,6 +232,8 @@ skill 用到的每个工具都能这样调（`queryShopList`、`searchProductFor
 ## 取餐二维码的原理
 
 MCP 返回 `takeMealCodeInfo.takeOrderId`（瑞幸 App 取餐码里编码的确切字符串）和一个人类可读的 `code`。`scripts/make_pickup_qr.js` 把 `takeOrderId` 编码为 PNG，然后**再解码回来、要求逐字符一致**才会展示图片。若校验失败，会删除坏 PNG 并降级为以文本形式发送取餐号。
+
+取餐码带一个**咖啡杯居中图标**（支付码用 **¥** 标记），两个码一眼就能分清。图标用 H 级纠错并通过同样的逐字符校验，因此仍可扫。
 
 ## 安全与隐私
 

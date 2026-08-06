@@ -29,6 +29,14 @@ Order coffee end-to-end. Follow the phases in order. Scripts live in this skill'
 - Never send a pickup-QR image that failed verification.
 - Match product attributes by **name** ("温度"/"冰度"/"糖度"…); attribute IDs are fallback only.
 - On any store-reason error from preview/create, pass it through verbatim and stop. No blind retry.
+- **Schema is authoritative.** Before the first call to any my-coffee tool (native tool or via curl),
+  read its schema — `tools/list` (curl) or the client's tool descriptor. Field/param names in this doc
+  are a quick reference; if the live schema differs, follow the schema. (This backs every "verify
+  against the live response" note below.)
+- **No pickup info before payment.** Until payment is confirmed (Phase 6 "paid"), never reveal the
+  pickup code, pickup QR, or an estimated pickup time — the pre-payment `takeMealCodeInfo.code` is a placeholder.
+- **Stay invisible.** Don't show the user tool names, raw JSON/SSE, or the `curl` commands you run —
+  surface only the business result and the next step.
 
 ## Phase 0 — MCP preflight (run FIRST, before anything else)
 Skills spread faster than their dependencies — assume the MCP may be missing or mis-keyed.
@@ -45,7 +53,9 @@ Run three checks in order, before any store/product work:
 
 **Runtime auth fallback:** if **any** later business call returns an auth error, immediately pause the
 flow and handle it as "key invalid" (Installation → key regen) — never treat it as a normal search
-failure. After the user updates the key, resume via "查一下我刚才的订单" (Recovery) or restart.
+failure. **Keys are only valid ~1 month**, so an expired key is the likeliest cause — tell the user that
+and point them to https://open.lkcoffee.com/mcp to log in and regenerate. After the user updates the key,
+resume via "查一下我刚才的订单" (Recovery) or restart.
 
 ## Installation & Configuration
 **Prerequisites:** a my-coffee (Luckin 瑞幸) MCP API key — a Bearer token from Luckin's open platform.
@@ -163,6 +173,11 @@ Determine deptId + coords for this order:
   "还在广州番禺附近吗？" (a one-time override is allowed; do NOT write it back to config).
 - You supply a rough km-level center coordinate for that district yourself (no web lookup). It is
   only a search anchor — never shown to the user.
+- **Zero-interaction anchor (trusted local env only):** instead of the model anchor, you MAY derive a
+  coarse center from `curl -s https://ipinfo.io/json` (its `loc` = "lat,lng"). City/region level only,
+  used solely as the search anchor, never shown. Skip it if this isn't the user's own machine, `loc` is
+  empty, or the user named a specific area — then use the model anchor / ask. Still confirm the district
+  by name before searching.
 - Strip generic suffixes (店/广场店/分店) to get the core `deptName`. **Protection:** if stripping
   leaves ≤1 Chinese character, don't strip — search the original word.
 - Call `queryShopList(longitude, latitude, deptName)`; sort by `distance`. Multiple hits → list and ask.
@@ -218,8 +233,13 @@ into `createOrder` (Phase 6) — that field is what applies the discount; never 
    non-empty (omitting it overcharges the user). Record the initial `orderStatus`. **Payment:** hand the
    user `payOrderQrCodeUrl` — render it as a Markdown image `![支付二维码](<payOrderQrCodeUrl>)` **plus** a
    full clickable `[打开支付二维码](<payOrderQrCodeUrl>)` fallback; on a channel with native image support
-   (e.g. 飞书/微信 media), send the image natively. **Never** use `payOrderUrl`; never truncate the URL.
-   Store-reason error → pass through and stop.
+   (e.g. 飞书/微信 media), send the image natively. **Never** show `payOrderUrl` to the user; never truncate
+   the URL. **Label it clearly as the 支付码** so it isn't confused with the later 取餐码 (two different QR
+   codes, shown at different times). Store-reason error → pass through and stop.
+   - *Optional (opt-in):* to give the 支付码 a matching ¥ icon, regenerate it yourself with
+     `node scripts/make_pickup_qr.js "<payOrderUrl>" scripts/pay-<orderId>.png pay` — but only after you've
+     confirmed on a real order that the regenerated code actually opens payment. Until validated, show
+     Luckin's `payOrderQrCodeUrl` image unchanged (never risk a broken payment code).
 2. **Capture the initial placeholder:** run one `queryOrderDetailInfo` now (still 待付款) and remember its
    `takeMealCodeInfo.code` as `INITIAL_CODE`.
 3. **Auto-poll** (no need for the user to tell you they paid). Between checks, wait with a background sleep
@@ -237,8 +257,9 @@ into `createOrder` (Phase 6) — that field is what applies the discount; never 
 4. If the user later says **"付好了"** → run one `queryOrderDetailInfo` and apply the same paid check.
 
 ## Phase 7 — Deliver the pickup QR
-1. Run `node scripts/make_pickup_qr.js "<takeMealCodeInfo.takeOrderId>" scripts/order-<orderId>.png`.
-2. **`QR_OK>>>`** → send the image + pickup number `code` + store/product summary (Read the PNG to render it).
+1. Run `node scripts/make_pickup_qr.js "<takeMealCodeInfo.takeOrderId>" scripts/order-<orderId>.png pickup`.
+   The QR carries a coffee-mug center icon so it's not confused with the 支付码.
+2. **`QR_OK>>>`** → send the image labeled **取餐码** + pickup number `code` + store/product summary (Read the PNG to render it).
 3. **`QR_FAIL>>>`** → the script already deleted the bad PNG. Degrade: send the pickup number `code` +
    store/product summary as text, and say the QR failed. Never send an unverified image.
 

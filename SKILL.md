@@ -20,8 +20,12 @@ Order coffee end-to-end. Follow the phases in order. Scripts live in this skill'
   full in chat prose — mask it there (`Bearer ****1234`). The one exception is the opt-in curl
   fallback (Phase 0.5): there the token may live in `$LUCKIN_MCP_TOKEN` / `$ORDER_COFFEE_TOKEN`,
   or — only with explicit user consent — in `~/.order-coffee/token` (`chmod 600`).
-- Before `createOrder`, get a **fresh** yes for the current preview (four elements below).
-  Never reuse an earlier confirmation.
+- **Coupon passthrough (money-critical):** if `previewOrder` returns a non-empty `couponCodeList`,
+  `createOrder` **must** forward it **verbatim** — dropping it silently overcharges the user.
+- **Payment link:** hand the user `payOrderQrCodeUrl` (the pay-QR image); **never** use `payOrderUrl`,
+  and never truncate the URL.
+- Get an explicit yes before `createOrder`, using the confirmation mode Phase 5 selects. Never reuse a
+  **stale** confirmation from an unrelated earlier order.
 - Never send a pickup-QR image that failed verification.
 - Match product attributes by **name** ("温度"/"冰度"/"糖度"…); attribute IDs are fallback only.
 - On any store-reason error from preview/create, pass it through verbatim and stop. No blind retry.
@@ -191,16 +195,31 @@ self-pickup field name — verify against the live response.) Closed/paused → 
    - Present the candidates that support the requested spec; let the user choose.
 4. Apply options with `switchProduct` to obtain the correct `skuCode`.
 
-## Phase 5 — Preview + confirm (four elements)
-Call `previewOrder`. Then confirm with the user, stating **all four**:
-1. store full name, 2. product + full spec, 3. actual pay amount, 4. payment method.
+## Phase 5 — Preview + confirm
+Pick the confirmation mode by scenario:
+
+- **Two-step (default — new store, new product, or any customized spec):** call `previewOrder`, then
+  confirm with the user, stating **all four**: 1. store full name, 2. product + full spec, 3. actual pay
+  amount (`discountPrice`; also surface `totalInitialPrice` and the `privilegeMoney` discount),
+  4. payment method. **Require a fresh explicit yes for THIS preview before `createOrder`.**
+- **Pre-authorized one-step (favorite-store "老样子" only):** at the store+product confirm, state the
+  order and declare the rule — "预览后若价格不高于预估、明细一致、优惠券正常，我就直接下单". On the user's
+  yes, call `previewOrder`; if it holds (pay amount ≤ the estimate you quoted, items match, coupons
+  normal, response complete) → go straight to `createOrder` with no second ask. **Otherwise stop and
+  re-confirm** — price rose, details differ, coupon anomaly, or incomplete/ambiguous response.
+
+**Coupons (either mode):** if `previewOrder` returns a non-empty `couponCodeList`, carry it **verbatim**
+into `createOrder` (Phase 6) — that field is what applies the discount; never drop it.
+
 > Store-reason error here → pass through verbatim and stop.
 
-**Require a fresh explicit yes for THIS preview before proceeding.**
-
 ## Phase 6 — Create order + poll payment
-1. `createOrder(...)`. Record the initial `orderStatus`. Give the user the WeChat pay link/QR from the
-   response. Store-reason error → pass through and stop.
+1. `createOrder(...)` — **forward `couponCodeList` from the Phase 5 preview verbatim** when it was
+   non-empty (omitting it overcharges the user). Record the initial `orderStatus`. **Payment:** hand the
+   user `payOrderQrCodeUrl` — render it as a Markdown image `![支付二维码](<payOrderQrCodeUrl>)` **plus** a
+   full clickable `[打开支付二维码](<payOrderQrCodeUrl>)` fallback; on a channel with native image support
+   (e.g. 飞书/微信 media), send the image natively. **Never** use `payOrderUrl`; never truncate the URL.
+   Store-reason error → pass through and stop.
 2. **Capture the initial placeholder:** run one `queryOrderDetailInfo` now (still 待付款) and remember its
    `takeMealCodeInfo.code` as `INITIAL_CODE`.
 3. **Auto-poll** (no need for the user to tell you they paid). Between checks, wait with a background sleep
@@ -226,6 +245,11 @@ Call `previewOrder`. Then confirm with the user, stating **all four**:
 ## Recovery
 If the user says "查一下我刚才的订单", query the latest order and resume: 待付款 → run one check
 (Phase 6 step 4) and optionally re-poll; already paid → Phase 7.
+
+## Cancel an order
+If the user wants out (e.g. "不付了" / "取消" / "帮我退掉"): use the most recent `orderId` from this
+conversation (if there is none, ask which order) → call `cancelOrder(orderId)` → give a short
+confirmation of the result. Stop any payment polling for that order; don't re-poll a canceled order.
 
 ## Known limitation (TODO)
 The my-coffee MCP exposes no 取餐方式 (店内用餐 / 自提带走) parameter — `createOrder` takes only

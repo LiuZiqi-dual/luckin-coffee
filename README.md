@@ -82,9 +82,11 @@ Just ask. The skill runs these phases:
 | 2 | Resolve the store (favorites → or search by city/district; never asks for coordinates) |
 | 3 | Check the store is open + supports self-pickup |
 | 4 | Find the product — exact search, then tokenized fallback that inspects attributes to satisfy specs like `全冰去水` |
-| 5 | Preview + confirm (store, item + full spec, exact price, payment method) |
-| 6 | Create the order, then **auto-poll payment** (15/30/45/60s, then every 20s to a 150s cap) |
+| 5 | Preview + confirm (store, item + full spec, exact price, payment method); **passes preview coupons through** — one-step confirm for a favorite "the usual", two-step for new items |
+| 6 | Create the order (coupons forwarded) + show the pay QR (`payOrderQrCodeUrl`), then **auto-poll payment** (15/30/45/60s, then every 20s to a 150s cap) |
 | 7 | Deliver the **pickup QR** (content verified char-for-char) + pickup number |
+
+> Also supported: **cancel** an unpaid order ("取消" / "不付了") and **recover** a prior order ("查一下我刚才的订单").
 
 ## Zero-config mode (curl fallback)
 
@@ -207,9 +209,11 @@ cd ~/.claude/skills/order-coffee/scripts && npm install
 | 2 | 确定门店（常用门店 → 或按城市/区县搜索；从不询问坐标） |
 | 3 | 检查门店营业中且支持自提 |
 | 4 | 找商品 —— 先精确搜索，再分词回退并检查属性以满足像 `全冰去水` 这样的规格 |
-| 5 | 预览 + 确认（门店、商品 + 完整规格、实付金额、支付方式） |
-| 6 | 下单，然后**自动轮询支付**（15/30/45/60s，之后每 20s，上限 150s） |
+| 5 | 预览 + 确认（门店、商品 + 完整规格、实付金额、支付方式）；**透传预览返回的优惠券** —— 常用店“老样子”一次确认，新品两次确认 |
+| 6 | 下单（透传优惠券）+ 展示支付二维码（`payOrderQrCodeUrl`），然后**自动轮询支付**（15/30/45/60s，之后每 20s，上限 150s） |
 | 7 | 交付**取餐二维码**（内容逐字符校验）+ 取餐号 |
+
+> 另外支持：**取消**未付订单（“取消”/“不付了”）和**找回**之前的订单（“查一下我刚才的订单”）。
 
 ## 零配置模式（curl 兜底）
 
